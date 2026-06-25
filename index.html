@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Questionnaire de Conners — Version Parents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F2EA;
+    --paper-deep:#EFE9DC;
+    --ink:#2C3733;
+    --ink-soft:#5B6660;
+    --teal:#4F7C77;
+    --teal-deep:#365C58;
+    --amber:#C98A3E;
+    --rule:#DAD2C0;
+    --card:#FFFEFB;
+    --danger:#A85C46;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Source Sans 3', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    max-width:760px;
+    margin:0 auto;
+    padding:0 20px 60px;
+  }
+  header.top{
+    padding:32px 0 18px;
+    border-bottom:1px solid var(--rule);
+    margin-bottom:0;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal-deep);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Lora', serif;
+    font-weight:600;
+    font-size:28px;
+    margin:0 0 4px;
+    color:var(--ink);
+    letter-spacing:-.01em;
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:15px;
+    margin:0;
+    line-height:1.5;
+  }
+
+  /* progress */
+  .progress-wrap{
+    margin-top:18px;
+  }
+  .progress-track{
+    height:6px;
+    width:100%;
+    background:var(--paper-deep);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--teal), var(--amber));
+    width:0%;
+    transition:width .35s ease;
+  }
+  .progress-label{
+    display:flex;
+    justify-content:space-between;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+
+  .screen{display:none;}
+  .screen.active{display:block; animation:fade .35s ease;}
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  /* intro screen */
+  .card{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:14px;
+    padding:26px 24px;
+    margin-top:24px;
+    box-shadow:0 1px 0 rgba(44,55,51,.03);
+  }
+  .field-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px 20px;
+    margin-top:4px;
+  }
+  .field-grid .full{grid-column:1 / -1;}
+  label{
+    display:block;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--teal-deep);
+    margin-bottom:6px;
+    letter-spacing:.01em;
+  }
+  input[type=text], input[type=date], input[type=number], select{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--rule);
+    border-radius:8px;
+    background:var(--paper);
+    font-family:'Source Sans 3', sans-serif;
+    font-size:14.5px;
+    color:var(--ink);
+  }
+  input:focus, select:focus, button:focus-visible{
+    outline:2px solid var(--teal);
+    outline-offset:1px;
+  }
+  fieldset{border:none; padding:0; margin:0;}
+  .radio-row{display:flex; gap:18px; margin-top:4px;}
+  .radio-row label{
+    display:flex; align-items:center; gap:6px;
+    font-weight:500; color:var(--ink); font-size:14px;
+  }
+
+  .legend{
+    margin-top:22px;
+    padding:16px 18px;
+    background:var(--paper-deep);
+    border-radius:10px;
+    font-size:13.5px;
+    color:var(--ink-soft);
+  }
+  .legend strong{color:var(--ink);}
+  .scale-key{
+    display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;
+  }
+  .scale-key span{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:6px;
+    padding:4px 8px;
+  }
+
+  /* question cards */
+  .q-card{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:14px;
+    padding:20px 22px;
+    margin:16px 0;
+  }
+  .q-num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--teal-deep);
+    margin-bottom:6px;
+  }
+  .q-text{
+    font-size:15.5px;
+    line-height:1.5;
+    margin:0 0 16px;
+    color:var(--ink);
+  }
+  .scale{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+  }
+  .opt{
+    position:relative;
+  }
+  .opt input{
+    position:absolute;
+    opacity:0;
+    width:100%;
+    height:100%;
+    margin:0;
+    cursor:pointer;
+  }
+  .opt .pill{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+    padding:10px 6px 9px;
+    border:1.5px solid var(--rule);
+    border-radius:10px;
+    background:var(--paper);
+    transition:all .15s ease;
+    text-align:center;
+  }
+  .opt .pill .n{
+    font-family:'JetBrains Mono', monospace;
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .opt .pill .t{
+    font-size:10.5px;
+    color:var(--ink-soft);
+    letter-spacing:.01em;
+  }
+  .opt input:checked + .pill{
+    border-color:var(--teal);
+    background:var(--teal);
+  }
+  .opt input:checked + .pill .n, .opt input:checked + .pill .t{
+    color:#fff;
+  }
+  .opt:hover .pill{border-color:var(--teal-deep);}
+
+  /* nav */
+  .nav-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:26px;
+    gap:12px;
+  }
+  button{
+    font-family:'Source Sans 3', sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    padding:11px 22px;
+    border-radius:9px;
+    border:1.5px solid var(--teal-deep);
+    background:var(--teal-deep);
+    color:#fff;
+    cursor:pointer;
+    transition:transform .1s ease, opacity .15s ease;
+  }
+  button.ghost{
+    background:transparent;
+    color:var(--teal-deep);
+  }
+  button:disabled{
+    opacity:.4;
+    cursor:not-allowed;
+  }
+  button:hover:not(:disabled){transform:translateY(-1px);}
+  .hint{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:8px;
+    min-height:16px;
+  }
+  .hint.warn{color:var(--danger); font-weight:600;}
+
+  /* results */
+  .score-hero{
+    display:flex;
+    align-items:flex-end;
+    gap:14px;
+    margin:22px 0 4px;
+  }
+  .score-num{
+    font-family:'Lora', serif;
+    font-size:54px;
+    font-weight:600;
+    color:var(--teal-deep);
+    line-height:1;
+  }
+  .score-den{
+    font-family:'JetBrains Mono', monospace;
+    font-size:16px;
+    color:var(--ink-soft);
+    padding-bottom:6px;
+  }
+  table.summary{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:18px;
+    font-size:13.5px;
+  }
+  table.summary th{
+    text-align:left;
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    border-bottom:1px solid var(--rule);
+    padding:6px 6px;
+  }
+  table.summary td{
+    padding:7px 6px;
+    border-bottom:1px solid var(--rule);
+    vertical-align:top;
+  }
+  table.summary td.score{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    text-align:center;
+    width:30px;
+  }
+  tr.lvl-3 td.score{color:var(--danger);}
+  tr.lvl-2 td.score{color:var(--amber);}
+  .disclaimer{
+    margin-top:22px;
+    padding:14px 16px;
+    border-left:3px solid var(--amber);
+    background:var(--paper-deep);
+    font-size:13px;
+    color:var(--ink-soft);
+    border-radius:0 8px 8px 0;
+  }
+  .actions-final{
+    display:flex; gap:10px; margin-top:22px; flex-wrap:wrap;
+  }
+
+  @media (max-width:560px){
+    .field-grid{grid-template-columns:1fr;}
+    .score-num{font-size:42px;}
+    h1{font-size:23px;}
+  }
+
+  @media print{
+    body{background:#fff;}
+    .nav-row, .progress-wrap, .actions-final, button{display:none !important;}
+    .screen{display:none !important;}
+    #screen-results{display:block !important;}
+    .card,.q-card{box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <p class="eyebrow">Conners — Version révisée (L), 1997</p>
+    <h1>Questionnaire d'évaluation du comportement</h1>
+    <p class="sub">À remplir par un parent ou tuteur, en décrivant le comportement habituel de l'enfant au cours du dernier mois.</p>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label">
+        <span id="progressText">Informations sur l'enfant</span>
+        <span id="progressCount">0 / 39 énoncés</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCREEN 0 : info -->
+  <section class="screen active" id="screen-0">
+    <div class="card">
+      <div class="field-grid">
+        <div class="full">
+          <label for="childName">Nom de l'enfant</label>
+          <input type="text" id="childName" placeholder="Prénom et nom">
+        </div>
+        <div>
+          <label>Sexe</label>
+          <div class="radio-row">
+            <label><input type="radio" name="sexe" value="M"> Masculin</label>
+            <label><input type="radio" name="sexe" value="F"> Féminin</label>
+          </div>
+        </div>
+        <div>
+          <label for="grade">Degré académique</label>
+          <input type="text" id="grade" placeholder="ex. 1ère année">
+        </div>
+        <div>
+          <label for="birthdate">Date de naissance</label>
+          <input type="date" id="birthdate">
+        </div>
+        <div>
+          <label for="age">Âge</label>
+          <input type="number" id="age" min="0" max="18" placeholder="en années">
+        </div>
+        <div>
+          <label for="compiler">Compilée par</label>
+          <input type="text" id="compiler" placeholder="Nom du parent / tuteur">
+        </div>
+        <div>
+          <label for="compileDate">Date</label>
+          <input type="date" id="compileDate">
+        </div>
+      </div>
+
+      <div class="legend">
+        <strong>Comment répondre :</strong> pour chacun des 39 énoncés suivants, choisissez la cote qui décrit le mieux le comportement de votre enfant au cours du <strong>dernier mois</strong>. Il n'y a pas de bonne ou de mauvaise réponse.
+        <div class="scale-key">
+          <span>0 — Jamais</span>
+          <span>1 — Légère, à l'occasion</span>
+          <span>2 — Moyenne, assez souvent</span>
+          <span>3 — Forte, très souvent</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-row">
+      <span></span>
+      <button onclick="goTo(1)">Commencer le questionnaire →</button>
+    </div>
+  </section>
+
+  <!-- question screens injected by JS -->
+  <div id="questionScreens"></div>
+
+  <!-- RESULTS -->
+  <section class="screen" id="screen-results">
+    <div class="card">
+      <p class="eyebrow">Résultat</p>
+      <h1 style="font-size:22px;">Sommaire des réponses</h1>
+      <p class="sub" id="resultSubject"></p>
+      <div class="score-hero">
+        <div class="score-num" id="totalScore">0</div>
+        <div class="score-den">/ 117 points</div>
+      </div>
+      <p class="sub" style="margin-top:2px;" id="scoreNote"></p>
+
+      <table class="summary">
+        <thead>
+          <tr><th style="width:30px;">N°</th><th>Énoncé</th><th>Cote</th></tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+
+      <div class="disclaimer">
+        Cet outil reproduit le contenu du Questionnaire de Conners (version révisée pour parents, L, 1997). Le score obtenu ici est un <strong>total brut</strong> et n'est pas converti en notes standardisées (T-scores) ni comparé à des normes par âge et sexe. Ce questionnaire ne constitue pas un diagnostic : seul un professionnel qualifié (psychologue, pédopsychiatre, pédiatre) peut interpréter ces résultats à la lumière des normes appropriées et d'une évaluation clinique complète.
+      </div>
+
+      <div class="actions-final">
+        <button onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+        <button class="ghost" onclick="goTo(1)">← Revoir les réponses</button>
+        <button class="ghost" onclick="resetAll()">Recommencer</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const items = [
+  "Est colérique et rancunier",
+  "A des difficultés à faire ou compléter ses devoirs",
+  "Bouge tout le temps, comme un appareil motorisé",
+  "Est timide, vite effrayé",
+  "Se fait très rigide dans ses exigences",
+  "N'a pas d'ami(e)s",
+  "Souffre de maux d'estomac",
+  "Se querelle",
+  "Recherche la fuite, hésite, ou n'arrive pas à s'engager dans des tâches qui demandent un effort mental soutenu (telles le travail scolaire ou les devoirs à la maison)",
+  "A de la difficulté à se concentrer dans ses travaux, ses jeux",
+  "Argumente avec les adultes",
+  "Ne réussit pas à terminer ses tâches",
+  "Devient difficile à contrôler dans les centres d'achat ou les épiceries",
+  "A peur des gens",
+  "Ne cesse de vérifier ses affaires",
+  "Perd rapidement ses camarades",
+  "Souffre de divers malaises, douleurs",
+  "Est turbulent ou très actif",
+  "A de la misère à se concentrer à l'école",
+  "Ne semble ne pas écouter ce qu'on lui dit",
+  "Perd le contrôle",
+  "Doit avoir une surveillance continue pour accomplir ses tâches",
+  "Se promène à la course ou grimpe partout dans les endroits interdits",
+  "Craint les nouvelles situations",
+  "Devient tatillon au niveau propreté",
+  "Ne sait pas comment se faire des ami(e)s",
+  "Commence à présenter des malaises, douleurs ou des maux d'estomac avant de partir pour l'école",
+  "Devient facile à exciter et réagit vite",
+  "Ne suit pas toutes les consignes et ne réussit pas à terminer ses travaux scolaires, corvées ou tâches (sans relation avec la conduite d'opposition ou la compréhension des directives)",
+  "Organise mal ses travaux et ses activités",
+  "Est irritable",
+  "Ne cesse de se tortiller",
+  "Craint de rester seul",
+  "Doit faire toujours les choses de la même manière",
+  "Ne reçoit pas d'invitations d'aller chez les camarades",
+  "Souffre de maux de tête",
+  "N'arrive pas à terminer ce qu'il commence",
+  "Manque de concentration, ou se distrait facilement",
+  "Parle trop"
+];
+
+const PER_SCREEN = 5;
+const totalScreens = Math.ceil(items.length / PER_SCREEN); // question screens, indices 1..totalScreens
+const answers = {}; // index (0-based) -> score
+
+function buildScreens(){
+  const wrap = document.getElementById('questionScreens');
+  let html = '';
+  for(let s=0; s<totalScreens; s++){
+    const start = s*PER_SCREEN;
+    const end = Math.min(start+PER_SCREEN, items.length);
+    html += `<section class="screen" id="screen-${s+1}">`;
+    for(let i=start; i<end; i++){
+      html += `
+        <div class="q-card">
+          <div class="q-num">Énoncé ${i+1} / ${items.length}</div>
+          <p class="q-text">${items[i]}</p>
+          <div class="scale" role="radiogroup" aria-label="Cote pour l'énoncé ${i+1}">
+            ${[0,1,2,3].map(v => `
+              <label class="opt">
+                <input type="radio" name="item-${i}" value="${v}" onchange="setAnswer(${i}, ${v})">
+                <span class="pill"><span class="n">${v}</span><span class="t">${['Jamais','Légère','Moyenne','Forte'][v]}</span></span>
+              </label>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+    html += `
+      <div class="nav-row">
+        <button class="ghost" onclick="goTo(${s})">← Précédent</button>
+        <button id="next-${s+1}" onclick="tryAdvance(${s+1})">${s+1 === totalScreens ? 'Voir le résultat →' : 'Suivant →'}</button>
+      </div>
+      <p class="hint" id="hint-${s+1}"></p>
+    </section>`;
+  }
+  wrap.innerHTML = html;
+}
+
+function setAnswer(i, v){
+  answers[i] = v;
+  updateProgress();
+}
+
+function rangeForScreen(s){
+  const start = (s-1)*PER_SCREEN;
+  const end = Math.min(start+PER_SCREEN, items.length);
+  return [start, end];
+}
+
+function screenComplete(s){
+  const [start, end] = rangeForScreen(s);
+  for(let i=start; i<end; i++){
+    if(answers[i] === undefined) return false;
+  }
+  return true;
+}
+
+function tryAdvance(currentScreenNum){
+  if(!screenComplete(currentScreenNum)){
+    document.getElementById('hint-'+currentScreenNum).textContent = 'Veuillez répondre à chaque énoncé avant de continuer.';
+    document.getElementById('hint-'+currentScreenNum).classList.add('warn');
+    return;
+  }
+  if(currentScreenNum === totalScreens){
+    showResults();
+    goTo('results');
+  } else {
+    goTo(currentScreenNum+1);
+  }
+}
+
+function goTo(target){
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  if(target === 'results'){
+    document.getElementById('screen-results').classList.add('active');
+  } else {
+    document.getElementById('screen-'+target).classList.add('active');
+  }
+  window.scrollTo({top:0, behavior:'smooth'});
+  updateProgress(target);
+}
+
+function updateProgress(target){
+  const answered = Object.keys(answers).length;
+  const pct = Math.round((answered/items.length)*100);
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressCount').textContent = answered+' / '+items.length+' énoncés';
+  let label = "Informations sur l'enfant";
+  if(typeof target === 'number'){
+    label = 'Section '+target+' / '+totalScreens;
+  } else if(target === 'results'){
+    label = 'Résultat';
+  }
+  document.getElementById('progressText').textContent = label;
+}
+
+function showResults(){
+  const name = document.getElementById('childName').value || 'l\\'enfant';
+  const compiler = document.getElementById('compiler').value;
+  const cdate = document.getElementById('compileDate').value;
+  let subject = 'Pour : '+name;
+  if(compiler) subject += '  ·  Rempli par : '+compiler;
+  if(cdate) subject += '  ·  Le '+cdate;
+  document.getElementById('resultSubject').textContent = subject;
+
+  let total = 0;
+  let body = '';
+  items.forEach((text, i) => {
+    const v = answers[i] ?? 0;
+    total += v;
+    const lvlClass = v === 3 ? 'lvl-3' : (v === 2 ? 'lvl-2' : '');
+    body += `<tr class="${lvlClass}"><td>${i+1}</td><td>${text}</td><td class="score">${v}</td></tr>`;
+  });
+  document.getElementById('resultsBody').innerHTML = body;
+  document.getElementById('totalScore').textContent = total;
+
+  const concerning = items.filter((t,i) => (answers[i]??0) >= 2).length;
+  document.getElementById('scoreNote').textContent =
+    concerning+' énoncé(s) sur 39 cotés "moyenne" ou "forte" (2 ou 3). Score total brut, non normé.';
+}
+
+function resetAll(){
+  for(const k in answers) delete answers[k];
+  document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+  document.querySelectorAll('.hint').forEach(h => { h.textContent=''; h.classList.remove('warn'); });
+  document.getElementById('childName').value='';
+  document.getElementById('grade').value='';
+  document.getElementById('birthdate').value='';
+  document.getElementById('age').value='';
+  document.getElementById('compiler').value='';
+  document.getElementById('compileDate').value='';
+  updateProgress();
+  goTo(0);
+}
+
+buildScreens();
+updateProgress();
+</script>
+</body>
+</html>
