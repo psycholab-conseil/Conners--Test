@@ -129,6 +129,65 @@
     outline:2px solid var(--teal);
     outline-offset:1px;
   }
+  /* ribbon date picker */
+  .wheel-date{
+    position:relative;
+    display:flex;
+    gap:4px;
+    height:120px;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    overflow:hidden;
+    padding:0 2px;
+  }
+  .wheel-col{
+    flex:1;
+    overflow-y:scroll;
+    scroll-snap-type:y mandatory;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    mask-image:linear-gradient(to bottom, transparent 0, #000 40px, #000 80px, transparent 120px);
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 40px, #000 80px, transparent 120px);
+  }
+  .wheel-col::-webkit-scrollbar{display:none;}
+  .wheel-col .wheel-pad{height:40px; flex-shrink:0;}
+  .wheel-item{
+    height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    scroll-snap-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:14px;
+    color:var(--ink-soft);
+    transition:color .15s, font-weight .15s, font-size .15s;
+    user-select:none;
+  }
+  .wheel-item.selected{
+    color:var(--ink);
+    font-weight:700;
+    font-size:16.5px;
+  }
+  .wheel-highlight{
+    position:absolute;
+    left:2px; right:2px;
+    top:50%;
+    height:40px;
+    transform:translateY(-50%);
+    border-top:1.5px solid var(--teal);
+    border-bottom:1.5px solid var(--teal);
+    background:rgba(79,124,119,.07);
+    border-radius:6px;
+    pointer-events:none;
+  }
+  .wheel-readout{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--teal-deep);
+    margin-top:6px;
+  }
+
   fieldset{border:none; padding:0; margin:0;}
   .radio-row{display:flex; gap:18px; margin-top:4px;}
   .radio-row label{
@@ -374,9 +433,15 @@
           <label for="grade">Degré académique</label>
           <input type="text" id="grade" placeholder="ex. 1ère année">
         </div>
-        <div>
-          <label for="birthdate">Date de naissance</label>
-          <input type="date" id="birthdate">
+        <div class="full">
+          <label>Date de naissance</label>
+          <div class="wheel-date" id="wheel-birthdate">
+            <div class="wheel-col" data-type="day"></div>
+            <div class="wheel-col" data-type="month"></div>
+            <div class="wheel-col" data-type="year"></div>
+            <div class="wheel-highlight"></div>
+          </div>
+          <div class="wheel-readout" id="readout-birthdate"></div>
         </div>
         <div>
           <label for="age">Âge</label>
@@ -386,9 +451,19 @@
           <label for="compiler">Compilée par</label>
           <input type="text" id="compiler" placeholder="Nom du parent / tuteur">
         </div>
-        <div>
-          <label for="compileDate">Date</label>
-          <input type="date" id="compileDate">
+        <div class="full">
+          <label>Date</label>
+          <div class="wheel-date" id="wheel-compileDate">
+            <div class="wheel-col" data-type="day"></div>
+            <div class="wheel-col" data-type="month"></div>
+            <div class="wheel-col" data-type="year"></div>
+            <div class="wheel-highlight"></div>
+          </div>
+          <div class="wheel-readout" id="readout-compileDate"></div>
+        </div>
+        <div class="full">
+          <label for="practitionerEmail">Email du praticien (optionnel)</label>
+          <input type="email" id="practitionerEmail" placeholder="ex. praticien@cabinet.tn">
         </div>
       </div>
 
@@ -435,10 +510,12 @@
       </div>
 
       <div class="actions-final">
+        <button onclick="sendToPractitioner()">Envoyer le rapport au praticien</button>
         <button onclick="window.print()">Imprimer / Enregistrer en PDF</button>
         <button class="ghost" onclick="goTo(1)">← Revoir les réponses</button>
         <button class="ghost" onclick="resetAll()">Recommencer</button>
       </div>
+      <p class="hint" id="sendHint"></p>
     </div>
   </section>
 
@@ -487,7 +564,123 @@ const items = [
   "Parle trop"
 ];
 
-const PER_SCREEN = 5;
+const MONTH_NAMES = ['Janv.','Févr.','Mars','Avr.','Mai','Juin','Juil.','Août','Sept.','Oct.','Nov.','Déc.'];
+const ITEM_H = 40;
+const wheelState = {}; // id -> {day, month, year}
+
+function daysInMonth(month, year){ return new Date(year, month, 0).getDate(); }
+
+function buildWheelColumn(colEl, list, selectedIdx, onSettle){
+  colEl.innerHTML = '<div class="wheel-pad"></div>' +
+    list.map(it => `<div class="wheel-item">${it.label}</div>`).join('') +
+    '<div class="wheel-pad"></div>';
+
+  function applySelectedStyle(idx){
+    colEl.querySelectorAll('.wheel-item').forEach((el,i) => el.classList.toggle('selected', i===idx));
+  }
+
+  function settle(idx, smooth){
+    idx = Math.max(0, Math.min(list.length-1, idx));
+    colEl.scrollTo({top: idx*ITEM_H, behavior: smooth ? 'smooth' : 'auto'});
+    applySelectedStyle(idx);
+    onSettle(list[idx].value, idx);
+  }
+
+  let t;
+  colEl.addEventListener('scroll', () => {
+    clearTimeout(t);
+    const idx = Math.round(colEl.scrollTop / ITEM_H);
+    applySelectedStyle(Math.max(0, Math.min(list.length-1, idx)));
+    t = setTimeout(() => settle(idx, true), 110);
+  });
+
+  settle(selectedIdx, false);
+  return { settle, getList: () => list };
+}
+
+function makeList(values, formatLabel){
+  return values.map(v => ({ value: v, label: formatLabel(v) }));
+}
+
+function initWheelDate(rootId, readoutId, initial){
+  const root = document.getElementById(rootId);
+  const dayCol = root.querySelector('[data-type=day]');
+  const monthCol = root.querySelector('[data-type=month]');
+  const yearCol = root.querySelector('[data-type=year]');
+
+  const state = { day: initial.day, month: initial.month, year: initial.year };
+  wheelState[rootId] = state;
+
+  const yearList = makeList(initial.years, y => String(y));
+  const monthList = makeList([1,2,3,4,5,6,7,8,9,10,11,12], m => MONTH_NAMES[m-1]);
+
+  let dayHandle, monthHandle, yearHandle;
+
+  function rebuildDays(keepDay){
+    const maxDay = daysInMonth(state.month, state.year);
+    const dayList = makeList(Array.from({length:maxDay}, (_,i)=>i+1), d => String(d).padStart(2,'0'));
+    const newDay = Math.min(keepDay, maxDay);
+    state.day = newDay;
+    dayHandle = buildWheelColumn(dayCol, dayList, newDay-1, (val) => {
+      state.day = val;
+      updateReadout();
+    });
+  }
+
+  function updateReadout(){
+    document.getElementById(readoutId).textContent =
+      String(state.day).padStart(2,'0')+' '+MONTH_NAMES[state.month-1]+' '+state.year;
+  }
+
+  monthHandle = buildWheelColumn(monthCol, monthList, initial.month-1, (val) => {
+    state.month = val;
+    rebuildDays(state.day);
+    updateReadout();
+  });
+
+  yearHandle = buildWheelColumn(yearCol, yearList, initial.years.indexOf(initial.year), (val) => {
+    state.year = val;
+    rebuildDays(state.day);
+    updateReadout();
+  });
+
+  rebuildDays(initial.day);
+  updateReadout();
+
+  return {
+    reset(newInitial){
+      state.day = newInitial.day; state.month = newInitial.month; state.year = newInitial.year;
+      monthHandle.settle(newInitial.month-1, false);
+      yearHandle.settle(initial.years.indexOf(newInitial.year), false);
+      rebuildDays(newInitial.day);
+      updateReadout();
+    }
+  };
+}
+
+function getWheelISO(rootId){
+  const s = wheelState[rootId];
+  if(!s) return '';
+  return s.year+'-'+String(s.month).padStart(2,'0')+'-'+String(s.day).padStart(2,'0');
+}
+
+function getWheelDisplay(rootId){
+  const s = wheelState[rootId];
+  if(!s) return '';
+  return String(s.day).padStart(2,'0')+'/'+String(s.month).padStart(2,'0')+'/'+s.year;
+}
+
+const todayY = 2026, todayM = 6, todayD = 25;
+const birthdateWheel = initWheelDate('wheel-birthdate', 'readout-birthdate', {
+  day: 1, month: 1, year: 2018,
+  years: Array.from({length: 27}, (_,i) => 2026 - i) // 2026 down to 2000
+});
+const compileDateWheel = initWheelDate('wheel-compileDate', 'readout-compileDate', {
+  day: todayD, month: todayM, year: todayY,
+  years: [2024, 2025, 2026, 2027]
+});
+
+
 const totalScreens = Math.ceil(items.length / PER_SCREEN); // question screens, indices 1..totalScreens
 const answers = {}; // index (0-based) -> score
 
@@ -583,9 +776,9 @@ function updateProgress(target){
 }
 
 function showResults(){
-  const name = document.getElementById('childName').value || 'l\\'enfant';
+  const name = document.getElementById('childName').value || "l'enfant";
   const compiler = document.getElementById('compiler').value;
-  const cdate = document.getElementById('compileDate').value;
+  const cdate = getWheelDisplay('wheel-compileDate');
   let subject = 'Pour : '+name;
   if(compiler) subject += '  ·  Rempli par : '+compiler;
   if(cdate) subject += '  ·  Le '+cdate;
@@ -607,16 +800,77 @@ function showResults(){
     concerning+' énoncé(s) sur 39 cotés "moyenne" ou "forte" (2 ou 3). Score total brut, non normé.';
 }
 
+function getSexe(){
+  const r = document.querySelector('input[name=sexe]:checked');
+  return r ? (r.value === 'M' ? 'Masculin' : 'Féminin') : 'Non précisé';
+}
+
+function sendToPractitioner(){
+  const name = document.getElementById('childName').value || "Enfant (nom non précisé)";
+  const grade = document.getElementById('grade').value || '—';
+  const age = document.getElementById('age').value || '—';
+  const compiler = document.getElementById('compiler').value || '—';
+  const practitionerEmail = document.getElementById('practitionerEmail').value.trim();
+  const birthdateDisplay = getWheelDisplay('wheel-birthdate');
+  const compileDateDisplay = getWheelDisplay('wheel-compileDate');
+
+  let total = 0;
+  items.forEach((t,i) => total += (answers[i] ?? 0));
+  const concerningItems = items
+    .map((t,i) => ({i, t, v: answers[i] ?? 0}))
+    .filter(o => o.v >= 2);
+
+  let body = '';
+  body += 'RAPPORT — QUESTIONNAIRE DE CONNERS (VERSION PARENTS)\n';
+  body += '======================================================\n\n';
+  body += 'Enfant : '+name+'\n';
+  body += 'Sexe : '+getSexe()+'\n';
+  body += 'Date de naissance : '+birthdateDisplay+'\n';
+  body += 'Âge : '+age+'\n';
+  body += 'Degré académique : '+grade+'\n';
+  body += 'Rempli par : '+compiler+'\n';
+  body += 'Date du questionnaire : '+compileDateDisplay+'\n\n';
+  body += 'SCORE TOTAL BRUT : '+total+' / 117\n';
+  body += concerningItems.length+' énoncé(s) sur 39 coté(s) "moyenne" (2) ou "forte" (3).\n\n';
+
+  if(concerningItems.length > 0){
+    body += 'ÉNONCÉS COTÉS 2 OU 3 :\n';
+    concerningItems.forEach(o => {
+      body += '  '+(o.i+1)+'. '+o.t+' — cote '+o.v+'\n';
+    });
+    body += '\n';
+  }
+
+  body += 'Note : ce score est un total brut, non converti en notes standardisées (T-scores) ';
+  body += 'et non comparé à des normes par âge et sexe. Il ne constitue pas un diagnostic. ';
+  body += 'Le détail complet des 39 réponses peut être transmis séparément (impression / PDF du questionnaire).\n';
+
+  const subject = 'Questionnaire de Conners — '+name+' — Score '+total+'/117';
+  const mailto = 'mailto:'+encodeURIComponent(practitionerEmail)+
+    '?subject='+encodeURIComponent(subject)+
+    '&body='+encodeURIComponent(body);
+
+  const hint = document.getElementById('sendHint');
+  if(!practitionerEmail){
+    hint.textContent = "Astuce : indiquez l'email du praticien à l'étape 1 pour le pré-remplir. Votre application email va s'ouvrir — vous pourrez choisir le destinataire vous-même.";
+  } else {
+    hint.textContent = "Votre application email va s'ouvrir avec le rapport déjà rempli. Vérifiez puis appuyez sur Envoyer.";
+  }
+  hint.classList.remove('warn');
+  window.location.href = mailto;
+}
+
 function resetAll(){
   for(const k in answers) delete answers[k];
   document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
   document.querySelectorAll('.hint').forEach(h => { h.textContent=''; h.classList.remove('warn'); });
   document.getElementById('childName').value='';
   document.getElementById('grade').value='';
-  document.getElementById('birthdate').value='';
   document.getElementById('age').value='';
   document.getElementById('compiler').value='';
-  document.getElementById('compileDate').value='';
+  document.getElementById('practitionerEmail').value='';
+  birthdateWheel.reset({day:1, month:1, year:2018});
+  compileDateWheel.reset({day:todayD, month:todayM, year:todayY});
   updateProgress();
   goTo(0);
 }
