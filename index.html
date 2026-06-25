@@ -462,7 +462,7 @@
           <div class="wheel-readout" id="readout-compileDate"></div>
         </div>
         <div class="full">
-          <label for="practitionerEmail">Email du praticien (optionnel)</label>
+          <label for="practitionerEmail">Email du praticien * <span style="font-weight:400; color:var(--ink-soft); text-transform:none; letter-spacing:0;">(obligatoire pour l'envoi du rapport)</span></label>
           <input type="email" id="practitionerEmail" placeholder="ex. praticien@cabinet.tn">
         </div>
       </div>
@@ -681,6 +681,7 @@ const compileDateWheel = initWheelDate('wheel-compileDate', 'readout-compileDate
 });
 
 
+const PER_SCREEN = 5;
 const totalScreens = Math.ceil(items.length / PER_SCREEN); // question screens, indices 1..totalScreens
 const answers = {}; // index (0-based) -> score
 
@@ -805,24 +806,47 @@ function getSexe(){
   return r ? (r.value === 'M' ? 'Masculin' : 'Féminin') : 'Non précisé';
 }
 
+function isValidEmail(addr){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr);
+}
+
 function sendToPractitioner(){
+  const practitionerEmail = document.getElementById('practitionerEmail').value.trim();
+  const hint = document.getElementById('sendHint');
+
+  if(!practitionerEmail){
+    hint.textContent = "L'email du praticien est obligatoire pour envoyer le rapport. Revenez à l'étape 1 pour le renseigner.";
+    hint.classList.add('warn');
+    return;
+  }
+  if(!isValidEmail(practitionerEmail)){
+    hint.textContent = "Cette adresse email ne semble pas valide. Vérifiez-la à l'étape 1.";
+    hint.classList.add('warn');
+    return;
+  }
+
   const name = document.getElementById('childName').value || "Enfant (nom non précisé)";
   const grade = document.getElementById('grade').value || '—';
   const age = document.getElementById('age').value || '—';
   const compiler = document.getElementById('compiler').value || '—';
-  const practitionerEmail = document.getElementById('practitionerEmail').value.trim();
   const birthdateDisplay = getWheelDisplay('wheel-birthdate');
   const compileDateDisplay = getWheelDisplay('wheel-compileDate');
 
   let total = 0;
   items.forEach((t,i) => total += (answers[i] ?? 0));
+  const pct = Math.round((total/117)*100);
   const concerningItems = items
     .map((t,i) => ({i, t, v: answers[i] ?? 0}))
     .filter(o => o.v >= 2);
+  const mildItems = items
+    .map((t,i) => ({i, t, v: answers[i] ?? 0}))
+    .filter(o => o.v === 1);
 
   let body = '';
-  body += 'RAPPORT — QUESTIONNAIRE DE CONNERS (VERSION PARENTS)\n';
-  body += '======================================================\n\n';
+  body += 'RAPPORT — QUESTIONNAIRE DE CONNERS (VERSION RÉVISÉE PARENTS, L, 1997)\n';
+  body += '======================================================================\n\n';
+  body += '1. IDENTIFICATION\n';
+  body += '------------------\n';
   body += 'Enfant : '+name+'\n';
   body += 'Sexe : '+getSexe()+'\n';
   body += 'Date de naissance : '+birthdateDisplay+'\n';
@@ -830,32 +854,63 @@ function sendToPractitioner(){
   body += 'Degré académique : '+grade+'\n';
   body += 'Rempli par : '+compiler+'\n';
   body += 'Date du questionnaire : '+compileDateDisplay+'\n\n';
-  body += 'SCORE TOTAL BRUT : '+total+' / 117\n';
-  body += concerningItems.length+' énoncé(s) sur 39 coté(s) "moyenne" (2) ou "forte" (3).\n\n';
+
+  body += '2. SCORE GLOBAL\n';
+  body += '----------------\n';
+  body += 'Score total brut : '+total+' / 117 ('+pct+' % du score maximum possible)\n';
+  body += concerningItems.length+' énoncé(s) sur 39 coté(s) "moyenne" (2) ou "forte" (3).\n';
+  body += mildItems.length+' énoncé(s) sur 39 coté(s) "légère" (1).\n\n';
+
+  body += '3. CADRE D\'INTERPRÉTATION (à titre indicatif, fondé sur la littérature)\n';
+  body += '------------------------------------------------------------------------\n';
+  body += "L'échelle de Conners pour parents (CPRS-R) explore classiquement plusieurs dimensions du \n";
+  body += "comportement de l'enfant : problèmes cognitifs/inattention, opposition, hyperactivité-\n";
+  body += "impulsivité, anxiété-retrait, perfectionnisme, problèmes sociaux et plaintes psychosomatiques \n";
+  body += '(Conners, Sitarenios, Parker & Epstein, 1998, "The revised Conners\' Parent Rating Scale: \n';
+  body += 'factor structure, reliability, and criterion validity", Journal of Abnormal Child Psychology).\n\n';
+  body += "Dans la version standardisée de l'instrument, les scores bruts par sous-échelle sont \n";
+  body += 'normalement convertis en notes T (moyenne 50, écart-type 10) à partir de barèmes par âge \n';
+  body += 'et par sexe. Par convention largement utilisée dans la littérature clinique :\n';
+  body += '  - T < 60  : se situe dans la norme\n';
+  body += '  - T 60-64 : légèrement élevé, à surveiller ("borderline")\n';
+  body += '  - T 65-69 : élevé, généralement considéré comme cliniquement significatif\n';
+  body += '  - T ≥ 70  : très élevé (environ 2 écarts-types au-dessus de la moyenne)\n\n';
+  body += 'IMPORTANT : le score affiché ci-dessus (point 2) est un TOTAL BRUT, simple somme des 39 \n';
+  body += "cotes saisies par le parent. Ce n'est PAS une note T normée par âge/sexe, et il ne peut donc \n";
+  body += 'pas être directement comparé aux seuils ci-dessus ni servir de critère diagnostique. Il offre \n';
+  body += "uniquement un indicateur global de fréquence/intensité des comportements rapportés, destiné \n";
+  body += "à orienter l'entretien clinique. Pour une cotation normée par sous-échelle (notes T, \n";
+  body += "percentiles), il est recommandé de ressaisir les réponses dans le barème ou logiciel \n";
+  body += 'officiel du Conners-R:L (Multi-Health Systems / Pearson).\n\n';
 
   if(concerningItems.length > 0){
-    body += 'ÉNONCÉS COTÉS 2 OU 3 :\n';
+    body += '4. ÉNONCÉS COTÉS "MOYENNE" (2) OU "FORTE" (3) — à examiner en priorité\n';
+    body += '------------------------------------------------------------------------\n';
     concerningItems.forEach(o => {
-      body += '  '+(o.i+1)+'. '+o.t+' — cote '+o.v+'\n';
+      body += '  '+(o.i+1)+'. '+o.t+'  →  cote '+o.v+'\n';
     });
     body += '\n';
+  } else {
+    body += '4. ÉNONCÉS COTÉS "MOYENNE" (2) OU "FORTE" (3)\n';
+    body += '------------------------------------------------------------------------\n';
+    body += "Aucun énoncé n'a été coté 2 ou 3 dans ce questionnaire.\n\n";
   }
 
-  body += 'Note : ce score est un total brut, non converti en notes standardisées (T-scores) ';
-  body += 'et non comparé à des normes par âge et sexe. Il ne constitue pas un diagnostic. ';
-  body += 'Le détail complet des 39 réponses peut être transmis séparément (impression / PDF du questionnaire).\n';
+  body += '5. LIMITES DE CE RAPPORT\n';
+  body += '-------------------------\n';
+  body += "Ce document est généré automatiquement à partir des réponses d'un parent/tuteur et ne \n";
+  body += "constitue ni un diagnostic ni une évaluation clinique complète. Seul un professionnel \n";
+  body += "qualifié (psychologue, pédopsychiatre, pédiatre), disposant des normes officielles par âge \n";
+  body += "et sexe et d'un entretien clinique, peut interpréter ces résultats de façon fiable. Le détail \n";
+  body += "complet des 39 réponses (y compris celles cotées 0 et 1) peut être transmis séparément par \n";
+  body += "impression / PDF du questionnaire.\n";
 
   const subject = 'Questionnaire de Conners — '+name+' — Score '+total+'/117';
   const mailto = 'mailto:'+encodeURIComponent(practitionerEmail)+
     '?subject='+encodeURIComponent(subject)+
     '&body='+encodeURIComponent(body);
 
-  const hint = document.getElementById('sendHint');
-  if(!practitionerEmail){
-    hint.textContent = "Astuce : indiquez l'email du praticien à l'étape 1 pour le pré-remplir. Votre application email va s'ouvrir — vous pourrez choisir le destinataire vous-même.";
-  } else {
-    hint.textContent = "Votre application email va s'ouvrir avec le rapport déjà rempli. Vérifiez puis appuyez sur Envoyer.";
-  }
+  hint.textContent = "Votre application email va s'ouvrir avec le rapport détaillé déjà rempli. Vérifiez puis appuyez sur Envoyer.";
   hint.classList.remove('warn');
   window.location.href = mailto;
 }
